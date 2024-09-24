@@ -14,7 +14,7 @@ double toRadians(double degrees) {
     return degrees * M_PI / 180.0;
 }
 
-std::pair<float, float> calc_bearing(double lat1_in, double long1_in, double lat2_in, double long2_in, double angle_gpses = 0.0) {
+std::pair<float, float> calc_bearing(double lat1_in, double long1_in, double lat2_in, double long2_in, bool add_90_deg=true) {
     // Convert latitude and longitude to radians
     double lat1 = toRadians(lat1_in);
     double long1 = toRadians(long1_in);
@@ -26,13 +26,13 @@ std::pair<float, float> calc_bearing(double lat1_in, double long1_in, double lat
         cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(long2 - long1)
     );
     // Add 90 degrees to get the bearing from north
-    bearing_rad += M_PI / 2.0;
+    if (add_90_deg) {
+        bearing_rad += M_PI / 2.0;
+    }
     // Convert the bearing to degrees
     double bearing_deg = bearing_rad * 180.0 / M_PI;
     // Make sure the bearing is positive
     bearing_deg = fmod((bearing_deg + 360.0), 360.0);
-    // Add the angle between the GPSes
-    bearing_deg += angle_gpses;
     // Make sure bearing is between -2pi and 2pi
     if (bearing_rad < -M_PI) {
         bearing_rad += 2 * M_PI;
@@ -50,8 +50,8 @@ class AntennaFuse : public rclcpp::Node {
         double angle_gpses = 0.0;
 
 
-        message_filters::Subscriber<sensor_msgs::msg::NavSatFix> gps_front_;
-        message_filters::Subscriber<sensor_msgs::msg::NavSatFix> gps_back_;
+        message_filters::Subscriber<sensor_msgs::msg::NavSatFix> gps_main_;
+        message_filters::Subscriber<sensor_msgs::msg::NavSatFix> gps_aux_;
         std::shared_ptr<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::NavSatFix, sensor_msgs::msg::NavSatFix>>> sync_;
 
         rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr gps_pub_;
@@ -75,21 +75,21 @@ class AntennaFuse : public rclcpp::Node {
             rclcpp::Parameter topic_prefix_param = this->get_parameter("topic_prefix");
 
             try{
-                rclcpp::Parameter gps_front_param = this->get_parameter("gps_main");
-                gps_front_.subscribe(this, gps_front_param.as_string());
-                rclcpp::Parameter gps_back_param = this->get_parameter("gps_aux");
-                gps_back_.subscribe(this, gps_back_param.as_string());
+                rclcpp::Parameter gps_main_param = this->get_parameter("gps_main");
+                gps_main_.subscribe(this, gps_main_param.as_string());
+                rclcpp::Parameter gps_aux_param = this->get_parameter("gps_aux");
+                gps_aux_.subscribe(this, gps_aux_param.as_string());
                 rclcpp::Parameter angle_gpses_param = this->get_parameter("angle_gpses");
                 angle_gpses = angle_gpses_param.as_double();
             } catch(const std::exception& e) {
                 RCLCPP_INFO(this->get_logger(), "Error: %s", e.what());
-                gps_front_.subscribe(this, topic_prefix_param.as_string() + "/gps_main");
-                gps_back_.subscribe(this, topic_prefix_param.as_string() + "/gps_aux");
+                gps_main_.subscribe(this, topic_prefix_param.as_string() + "/gps_main");
+                gps_aux_.subscribe(this, topic_prefix_param.as_string() + "/gps_aux");
             }
 
 
             sync_ = std::make_shared<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::NavSatFix, sensor_msgs::msg::NavSatFix>>>(10);
-            sync_->connectInput(gps_front_, gps_back_);
+            sync_->connectInput(gps_main_, gps_aux_);
             sync_->registerCallback(std::bind(&AntennaFuse::callback, this, std::placeholders::_1, std::placeholders::_2));
 
             gps_pub_ = this->create_publisher<sensor_msgs::msg::NavSatFix>(topic_prefix_param.as_string() + "/loc/fix", 10);
@@ -103,15 +103,15 @@ class AntennaFuse : public rclcpp::Node {
 
     private:
 
-        void callback(const sensor_msgs::msg::NavSatFix::ConstSharedPtr& gps_front_msg, const sensor_msgs::msg::NavSatFix::ConstSharedPtr& gps_back_msg) {
-            curr_pose = *gps_front_msg;
+        void callback(const sensor_msgs::msg::NavSatFix::ConstSharedPtr& gps_main_msg, const sensor_msgs::msg::NavSatFix::ConstSharedPtr& gps_aux_msg) {
+            curr_pose = *gps_main_msg;
             curr_pose.header.frame_id = "gps";
  
             farmbot_interfaces::msg::Float32Stamped deg_msg;
             farmbot_interfaces::msg::Float32Stamped rad_msg;
             deg_msg.header = curr_pose.header;
             rad_msg.header = curr_pose.header;
-            auto [bearing_deg, bearing_rad] = calc_bearing(curr_pose.latitude, curr_pose.longitude, gps_back_msg->latitude, gps_back_msg->longitude);
+            auto [bearing_deg, bearing_rad] = calc_bearing(curr_pose.latitude, curr_pose.longitude, gps_aux_msg->latitude, gps_aux_msg->longitude);
             deg_msg.data = bearing_deg;
             rad_msg.data = bearing_rad;
 
