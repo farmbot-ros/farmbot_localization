@@ -49,6 +49,57 @@ std::tuple<double, double, double> ecef_to_enu(std::tuple<double, double, double
     return std::make_tuple(xEast, yNorth, zUp);
 }
 
+std::tuple<double, double, double> gps_to_enu(double latitude, double longitude, double altitude, double latRef, double longRef, double altRef) {
+    std::tuple<double, double, double> ecef = gps_to_ecef(latitude, longitude, altitude);
+    std::tuple<double, double, double> datum = gps_to_ecef(latRef, longRef, altRef);
+    return ecef_to_enu(ecef, datum);
+}
+
+std::tuple<double, double, double> enu_to_ecef(std::tuple<double, double, double> enu, std::tuple<double, double, double> datum) {
+    double xEast, yNorth, zUp;
+    std::tie(xEast, yNorth, zUp) = enu;
+    double latRef, longRef, altRef;
+    std::tie(latRef, longRef, altRef) = datum;
+    double cosLatRef = std::cos(latRef * M_PI / 180);
+    double sinLatRef = std::sin(latRef * M_PI / 180);
+    double cosLongRef = std::cos(longRef * M_PI / 180);
+    double sinLongRef = std::sin(longRef * M_PI / 180);
+    // Compute reference ECEF coordinates for the datum
+    double cRef = 1 / std::sqrt(cosLatRef * cosLatRef + (1 - f) * (1 - f) * sinLatRef * sinLatRef);
+    double x0 = (R * cRef + altRef) * cosLatRef * cosLongRef;
+    double y0 = (R * cRef + altRef) * cosLatRef * sinLongRef;
+    double z0 = (R * cRef * (1 - e2) + altRef) * sinLatRef;
+    // Reverse the ENU to ECEF transformation
+    double x = x0 + (-sinLongRef * xEast) - (sinLatRef * cosLongRef * yNorth) + (cosLatRef * cosLongRef * zUp);
+    double y = y0 + (cosLongRef * xEast) - (sinLatRef * sinLongRef * yNorth) + (cosLatRef * sinLongRef * zUp);
+    double z = z0 + (cosLatRef * yNorth) + (sinLatRef * zUp);
+    return std::make_tuple(x, y, z);
+}
+
+std::tuple<double, double, double> ecef_to_gps(double x, double y, double z) {
+    const double e2 = f * (2 - f); // Square of eccentricity
+    const double eps = 1e-12; // Convergence threshold
+    double longitude = std::atan2(y, x) * 180 / M_PI;
+    // Compute initial latitude and height guesses
+    double p = std::sqrt(x * x + y * y);
+    double latitude = std::atan2(z, p * (1 - e2));
+    double N = R / std::sqrt(1 - e2 * std::sin(latitude) * std::sin(latitude)); // Prime vertical radius of curvature
+    double altitude = p / std::cos(latitude) - N;
+    double latOld;
+    do {
+        latOld = latitude;
+        N = R / std::sqrt(1 - e2 * std::sin(latitude) * std::sin(latitude));
+        altitude = p / std::cos(latitude) - N;
+        latitude = std::atan2(z, p * (1 - e2 * N / (N + altitude)));
+    } while (std::abs(latitude - latOld) > eps);
+    return std::make_tuple(latitude * 180 / M_PI, longitude, altitude);
+}
+
+std::tuple<double, double, double> enu_to_gps(double xEast, double yNorth, double zUp, double latRef, double longRef, double altRef) {
+    std::tuple<double, double, double> ecef = enu_to_ecef(std::make_tuple(xEast, yNorth, zUp), std::make_tuple(latRef, longRef, altRef));
+    return ecef_to_gps(std::get<0>(ecef), std::get<1>(ecef), std::get<2>(ecef));
+}
+
 class Gps2Enu : public rclcpp::Node {
     private:
         nav_msgs::msg::Odometry datum;

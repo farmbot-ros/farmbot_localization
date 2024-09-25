@@ -14,7 +14,35 @@ double toRadians(double degrees) {
     return degrees * M_PI / 180.0;
 }
 
-std::pair<float, float> calc_bearing(double lat1_in, double long1_in, double lat2_in, double long2_in, bool add_90_deg=true) {
+// std::pair<float, float> calc_bearing(double lat1_in, double long1_in, double lat2_in, double long2_in, bool add_90_deg=true) {
+//     // Convert latitude and longitude to radians
+//     double lat1 = toRadians(lat1_in);
+//     double long1 = toRadians(long1_in);
+//     double lat2 = toRadians(lat2_in);
+//     double long2 = toRadians(long2_in);
+//     // Calculate the bearing
+//     double bearing_rad = atan2(
+//         sin(long2 - long1) * cos(lat2),
+//         cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(long2 - long1)
+//     );
+//     // Add 90 degrees to get the bearing from north
+//     if (add_90_deg) {
+//         bearing_rad += M_PI / 2.0;
+//     }
+//     // Convert the bearing to degrees
+//     double bearing_deg = bearing_rad * 180.0 / M_PI;
+//     // Make sure the bearing is positive
+//     bearing_deg = fmod((bearing_deg + 360.0), 360.0);
+//     // Make sure bearing is between -2pi and 2pi
+//     if (bearing_rad < -M_PI) {
+//         bearing_rad += 2 * M_PI;
+//     } else if (bearing_rad >= M_PI) {
+//         bearing_rad -= 2 * M_PI;
+//     }
+//     return std::make_pair(static_cast<float>(bearing_deg), static_cast<float>(bearing_rad));
+// }
+
+std::pair<float, float> calc_bearing(double lat1_in, double long1_in, double lat2_in, double long2_in, double angle_gpses = 0.0) {
     // Convert latitude and longitude to radians
     double lat1 = toRadians(lat1_in);
     double long1 = toRadians(long1_in);
@@ -26,13 +54,13 @@ std::pair<float, float> calc_bearing(double lat1_in, double long1_in, double lat
         cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(long2 - long1)
     );
     // Add 90 degrees to get the bearing from north
-    if (add_90_deg) {
-        bearing_rad += M_PI / 2.0;
-    }
+    bearing_rad += M_PI / 2.0;
     // Convert the bearing to degrees
     double bearing_deg = bearing_rad * 180.0 / M_PI;
     // Make sure the bearing is positive
     bearing_deg = fmod((bearing_deg + 360.0), 360.0);
+    // Add the angle between the GPSes
+    bearing_deg += angle_gpses;
     // Make sure bearing is between -2pi and 2pi
     if (bearing_rad < -M_PI) {
         bearing_rad += 2 * M_PI;
@@ -48,6 +76,8 @@ class AntennaFuse : public rclcpp::Node {
         sensor_msgs::msg::NavSatFix curr_pose;
         bool datum_set = false;
         double angle_gpses = 0.0;
+        std::string gps_main_topic;
+        std::string gps_aux_topic;
 
 
         message_filters::Subscriber<sensor_msgs::msg::NavSatFix> gps_main_;
@@ -76,16 +106,24 @@ class AntennaFuse : public rclcpp::Node {
 
             try{
                 rclcpp::Parameter gps_main_param = this->get_parameter("gps_main");
-                gps_main_.subscribe(this, gps_main_param.as_string());
+                gps_main_topic = gps_main_param.as_string();
                 rclcpp::Parameter gps_aux_param = this->get_parameter("gps_aux");
-                gps_aux_.subscribe(this, gps_aux_param.as_string());
+                gps_aux_topic = gps_aux_param.as_string();
                 rclcpp::Parameter angle_gpses_param = this->get_parameter("angle_gpses");
                 angle_gpses = angle_gpses_param.as_double();
             } catch(const std::exception& e) {
                 RCLCPP_INFO(this->get_logger(), "Error: %s", e.what());
-                gps_main_.subscribe(this, topic_prefix_param.as_string() + "/gps_main");
-                gps_aux_.subscribe(this, topic_prefix_param.as_string() + "/gps_aux");
+                // gps_main_.subscribe(this, topic_prefix_param.as_string() + "/gps_main");
+                // gps_aux_.subscribe(this, topic_prefix_param.as_string() + "/gps_aux");
+                gps_main_topic = topic_prefix_param.as_string() + "/gps_main";
+                gps_aux_topic = topic_prefix_param.as_string() + "/gps_aux";
+                angle_gpses = 0.0;
             }
+
+            gps_main_.subscribe(this, gps_main_topic);
+            gps_aux_.subscribe(this, gps_aux_topic);
+
+            RCLCPP_INFO(this->get_logger(), "Subscribing to GPS topics: %s, %s and gps angle offset: %f", gps_main_topic.c_str(), gps_aux_topic.c_str(), angle_gpses);
 
 
             sync_ = std::make_shared<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::NavSatFix, sensor_msgs::msg::NavSatFix>>>(10);
@@ -111,7 +149,7 @@ class AntennaFuse : public rclcpp::Node {
             farmbot_interfaces::msg::Float32Stamped rad_msg;
             deg_msg.header = curr_pose.header;
             rad_msg.header = curr_pose.header;
-            auto [bearing_deg, bearing_rad] = calc_bearing(curr_pose.latitude, curr_pose.longitude, gps_aux_msg->latitude, gps_aux_msg->longitude);
+            auto [bearing_deg, bearing_rad] = calc_bearing(curr_pose.latitude, curr_pose.longitude, gps_aux_msg->latitude, gps_aux_msg->longitude, angle_gpses);
             deg_msg.data = bearing_deg;
             rad_msg.data = bearing_rad;
 
