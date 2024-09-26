@@ -5,7 +5,6 @@ import yaml
 import argparse
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
-from launch.conditions import UnlessCondition
 from launch.substitutions import LaunchConfiguration
 from launch.actions import OpaqueFunction
 
@@ -13,10 +12,11 @@ from launch.actions import OpaqueFunction
 def launch_setup(context, *args, **kwargs):
     namespace = LaunchConfiguration('namespace').perform(context)
     param_file = os.path.join(get_package_share_directory('farmbot_localization'), 'config', 'params.yaml')
+
+    nodes_array = []
     
     antenna_split = Node(
         package='farmbot_localization',
-        condition = UnlessCondition(LaunchConfiguration('double_antenna')),
         namespace=namespace,
         executable='antenna_split',
         name='antenna_split',
@@ -41,6 +41,31 @@ def launch_setup(context, *args, **kwargs):
         ]    
     )
 
+    gps_and_deg = Node(
+        package='farmbot_localization',
+        namespace=namespace,
+        executable='gps_and_deg',
+        name='gps_and_deg',
+        parameters=[
+            {"frame_prefix": namespace+"/"},
+            {"namespace": namespace},
+            yaml.safe_load(open(param_file))['gps_and_deg']['ros__parameters'], 
+            yaml.safe_load(open(param_file))['global']['ros__parameters']
+        ]    
+    )
+
+
+    # "single_gps" or "dual_gps" or "gps_and_deg"
+    localization_type = yaml.safe_load(open(param_file))['global']['ros__parameters']['localization_type']
+
+    if localization_type == "gps_and_deg":
+        nodes_array.append(gps_and_deg)
+    elif localization_type == "single_gps":
+        nodes_array.append(antenna_split)
+        nodes_array.append(antenna_fuse)
+    elif localization_type == "dual_gps":
+        nodes_array.append(antenna_fuse)
+
     gps_to_enu = Node(
         package='farmbot_localization',
         namespace=namespace,
@@ -53,6 +78,7 @@ def launch_setup(context, *args, **kwargs):
             yaml.safe_load(open(param_file))['global']['ros__parameters'],
         ]    
     )
+    nodes_array.append(gps_to_enu)
 
     odom_n_path = Node(
         package='farmbot_localization',
@@ -66,6 +92,7 @@ def launch_setup(context, *args, **kwargs):
             yaml.safe_load(open(param_file))['global']['ros__parameters']
         ]    
     )
+    nodes_array.append(odom_n_path)
 
     transform_pub = Node(
         package='farmbot_localization',
@@ -79,13 +106,9 @@ def launch_setup(context, *args, **kwargs):
             yaml.safe_load(open(param_file))['global']['ros__parameters']
         ]
     )
-    return [ 
-        antenna_split,
-        antenna_fuse,
-        gps_to_enu,
-        odom_n_path,
-        transform_pub,
-    ]
+    nodes_array.append(transform_pub)
+
+    return nodes_array
 
 
 def generate_launch_description(): 

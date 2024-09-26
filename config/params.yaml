@@ -1,6 +1,7 @@
 global:
   ros__parameters:
     topic_prefix: '/fb'
+    localization_type: "gps_and_deg" # "single_gps" or "dual_gps" or "gps_and_deg"
 
 antenna_split:
   ros__parameters:
@@ -16,9 +17,16 @@ antenna_fuse:
   ros__parameters:
     name: 'fuse'
     #input_topics:
-    gps_main: '/gps_main'
-    gps_aux: '/gps_aux'
-    angle_gpses: 0.0
+    gps_main: 'fixposition/gnss1'
+    gps_aux: 'fixposition/gnss2'
+    angle_gpses: 90.0
+
+gps_and_deg:
+  ros__parameters:
+    name: 'gps_and_deg'
+    #input_topics:
+    gps_corr: '/corr/gps'
+    angle_deg: '/corr/heading'
 
 gps_to_enu:
   ros__parameters:

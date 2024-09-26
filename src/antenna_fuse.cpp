@@ -79,7 +79,6 @@ class AntennaFuse : public rclcpp::Node {
         std::string gps_main_topic;
         std::string gps_aux_topic;
 
-
         message_filters::Subscriber<sensor_msgs::msg::NavSatFix> gps_main_;
         message_filters::Subscriber<sensor_msgs::msg::NavSatFix> gps_aux_;
         std::shared_ptr<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::NavSatFix, sensor_msgs::msg::NavSatFix>>> sync_;

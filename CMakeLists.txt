@@ -111,6 +111,23 @@ ament_target_dependencies(transform_pub
   farmbot_interfaces
 )
 
+add_executable(gps_and_deg src/gps_and_deg.cpp)
+ament_target_dependencies(gps_and_deg
+  rclcpp 
+  std_msgs
+  std_srvs
+  nav_msgs
+  geometry_msgs
+  sensor_msgs
+  tf2
+  tf2_ros
+  message_filters
+  pcl_ros
+  pcl_conversions
+  farmbot_interfaces
+)
+
+
 
 find_package(Eigen3 REQUIRED)
 include_directories(${Eigen_INCLUDE_DIRS})
@@ -148,8 +165,14 @@ target_link_libraries(transform_pub
   ${Eigen_LIBRARIES}
 )
 
+target_link_libraries(gps_and_deg
+  fmt::fmt
+  ${PCL_LIBRARIES}
+  ${Eigen_LIBRARIES}
+)
+
 install(TARGETS
-  antenna_fuse antenna_split gps_to_enu odom_n_path transform_pub
+  antenna_fuse antenna_split gps_to_enu odom_n_path transform_pub gps_and_deg
   DESTINATION lib/${PROJECT_NAME}
 )
 
