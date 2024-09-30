@@ -69,8 +69,8 @@ class Gps2Enu : public rclcpp::Node {
             
             ecef_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(topic_prefix_param + "/loc/ecef", 10);
             enu_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(topic_prefix_param + "/loc/enu", 10);
-            ecef_datum_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(topic_prefix_param + "/loc/ref/ecef", 10);
-            geo_dat_pub_ = this->create_publisher<sensor_msgs::msg::NavSatFix>(topic_prefix_param + "/loc/ref", 10);
+            ecef_datum_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(topic_prefix_param + "/loc/ref", 10);
+            geo_dat_pub_ = this->create_publisher<sensor_msgs::msg::NavSatFix>(topic_prefix_param + "/loc/ref/geo", 10);
 
             datum_gps_ = this->create_service<farmbot_interfaces::srv::Datum>(topic_prefix_param + "/datum", std::bind(&Gps2Enu::datum_gps_callback, this, std::placeholders::_1, std::placeholders::_2));
             datum_set_ = this->create_service<farmbot_interfaces::srv::Trigger>(topic_prefix_param + "/datum/set", std::bind(&Gps2Enu::datum_set_callback, this, std::placeholders::_1, std::placeholders::_2));

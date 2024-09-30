@@ -40,6 +40,7 @@ set(executables
 
 set (utils
   wgs_to_enu
+  wgs_to_utm
 )
 
 find_package(ament_cmake REQUIRED)

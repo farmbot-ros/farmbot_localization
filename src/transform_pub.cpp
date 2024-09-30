@@ -39,7 +39,7 @@ class TransformPub : public rclcpp::Node {
             }
 
             odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(topic_prefix_param + "/loc/odom", 10, std::bind(&TransformPub::base_transform, this, std::placeholders::_1));
-            ecef_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(topic_prefix_param + "/loc/ref/ecef", 10, std::bind(&TransformPub::ecef_callback, this, std::placeholders::_1));
+            ecef_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(topic_prefix_param + "/loc/ref", 10, std::bind(&TransformPub::ecef_callback, this, std::placeholders::_1));
             transform_timer_ = this->create_wall_timer(std::chrono::milliseconds(10000), std::bind(&TransformPub::ecef_timer, this));
 
             base_tf = std::make_unique<tf2_ros::TransformBroadcaster>(this);
