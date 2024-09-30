@@ -21,6 +21,7 @@ class GpsAndDEg : public rclcpp::Node {
         std::string angle_deg_topic;
 
         std::string name;
+        std::string topic_prefix_param;
 
         rclcpp::TimerBase::SharedPtr timer_;
         rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr gps_corr_;
@@ -37,26 +38,33 @@ class GpsAndDEg : public rclcpp::Node {
             .automatically_declare_parameters_from_overrides(true)
         ){
             RCLCPP_INFO(this->get_logger(), "Starting GPS & DEG Node");
-            rclcpp::Parameter param_val = this->get_parameter("name"); 
-            rclcpp::Parameter topic_prefix_param = this->get_parameter("topic_prefix");
+            try {
+                name = this->get_parameter("name").as_string(); 
+                topic_prefix_param = this->get_parameter("topic_prefix").as_string();
+            } catch (...) {
+                name = "gps_and_deg";
+                topic_prefix_param = "/fb";
+            }
+
+            //try to get the parameters of gps_corr and angle_deg topics
             try{
                 rclcpp::Parameter gps_corr_param = this->get_parameter("gps_corr");
                 gps_corr_topic = gps_corr_param.as_string();
                 rclcpp::Parameter angle_gpses_param = this->get_parameter("angle_deg");
                 angle_deg_topic = angle_gpses_param.as_string();
             } catch(const std::exception& e) {
-                RCLCPP_INFO(this->get_logger(), "Error: %s", e.what());
-                gps_corr_topic = topic_prefix_param.as_string() + "/gps_corr";
-                angle_deg_topic = topic_prefix_param.as_string() + "/angle_deg";
+                RCLCPP_WARN(this->get_logger(), "Could not find one of those parameters: gps_corr, angle_deg");
+                gps_corr_topic = topic_prefix_param + "/gps_corr";
+                angle_deg_topic = topic_prefix_param + "/angle_deg";
             }
             RCLCPP_INFO(this->get_logger(), "Subscribing to %s and %s", gps_corr_topic.c_str(), angle_deg_topic.c_str());
 
             gps_corr_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(gps_corr_topic, 10, std::bind(&GpsAndDEg::gps_corr_callback, this, std::placeholders::_1));
             angle_deg_ = this->create_subscription<std_msgs::msg::Float32>(angle_deg_topic, 10, std::bind(&GpsAndDEg::angle_deg_callback, this, std::placeholders::_1));
             timer_ = this->create_wall_timer(std::chrono::milliseconds(10), std::bind(&GpsAndDEg::timer_callback, this));
-            gps_pub_ = this->create_publisher<sensor_msgs::msg::NavSatFix>(topic_prefix_param.as_string() + "/loc/fix", 10);
-            deg_ = this->create_publisher<farmbot_interfaces::msg::Float32Stamped>(topic_prefix_param.as_string() + "/loc/deg", 10);
-            rad_ = this->create_publisher<farmbot_interfaces::msg::Float32Stamped>(topic_prefix_param.as_string() + "/loc/rad", 10);
+            gps_pub_ = this->create_publisher<sensor_msgs::msg::NavSatFix>(topic_prefix_param + "/loc/fix", 10);
+            deg_ = this->create_publisher<farmbot_interfaces::msg::Float32Stamped>(topic_prefix_param + "/loc/deg", 10);
+            rad_ = this->create_publisher<farmbot_interfaces::msg::Float32Stamped>(topic_prefix_param + "/loc/rad", 10);
         }
 
     private:

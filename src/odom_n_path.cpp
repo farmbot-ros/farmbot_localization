@@ -1,5 +1,4 @@
 #include <cmath>
-
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/nav_sat_fix.hpp"
 #include "nav_msgs/msg/odometry.hpp"
@@ -28,6 +27,9 @@ class OdomNPath : public rclcpp::Node {
         geometry_msgs::msg::PoseStamped prev_point_dist;
         farmbot_interfaces::msg::Float32Stamped cumulative_dist;
 
+        std::string name;
+        std::string topic_prefix_param;
+
         rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
         rclcpp::TimerBase::SharedPtr odom_timer_;
         rclcpp::Publisher<farmbot_interfaces::msg::Float32Stamped>::SharedPtr dist_pub_;
@@ -50,22 +52,26 @@ class OdomNPath : public rclcpp::Node {
             .automatically_declare_parameters_from_overrides(true)
         ){
             RCLCPP_INFO(this->get_logger(), "Starting Odom&Path");
-            const char* ns = this->get_namespace();
-            rclcpp::Parameter param_val = this->get_parameter("name"); 
-            rclcpp::Parameter topic_prefix_param = this->get_parameter("topic_prefix");
+            try {
+                name = this->get_parameter("name").as_string(); 
+                topic_prefix_param = this->get_parameter("topic_prefix").as_string();
+            } catch (...) {
+                name = "odom_n_path";
+                topic_prefix_param = "/fb";
+            }
 
-            odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(topic_prefix_param.as_string() + "/loc/odom", 10);
+            odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(topic_prefix_param + "/loc/odom", 10);
             odom_timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&OdomNPath::odom_callback, this));
-            dist_pub_ = this->create_publisher<farmbot_interfaces::msg::Float32Stamped>(topic_prefix_param.as_string() + "/loc/dist", 10);
+            dist_pub_ = this->create_publisher<farmbot_interfaces::msg::Float32Stamped>(topic_prefix_param + "/loc/dist", 10);
             dist_timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&OdomNPath::dist_callback, this));
-            dist_reset = this->create_service<farmbot_interfaces::srv::Trigger>(topic_prefix_param.as_string() + "/loc/dist_reset", std::bind(&OdomNPath::dist_reset_callback, this, std::placeholders::_1, std::placeholders::_2));
-            path_pub_ = this->create_publisher<nav_msgs::msg::Path>(topic_prefix_param.as_string() + "/loc/path", 10);
+            dist_reset = this->create_service<farmbot_interfaces::srv::Trigger>(topic_prefix_param + "/loc/dist_reset", std::bind(&OdomNPath::dist_reset_callback, this, std::placeholders::_1, std::placeholders::_2));
+            path_pub_ = this->create_publisher<nav_msgs::msg::Path>(topic_prefix_param + "/loc/path", 10);
             path_timer_ = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&OdomNPath::path_callback, this));
-            path_reset = this->create_service<farmbot_interfaces::srv::Trigger>(topic_prefix_param.as_string() + "/loc/path_reset", std::bind(&OdomNPath::path_reset_callback, this, std::placeholders::_1, std::placeholders::_2));
+            path_reset = this->create_service<farmbot_interfaces::srv::Trigger>(topic_prefix_param + "/loc/path_reset", std::bind(&OdomNPath::path_reset_callback, this, std::placeholders::_1, std::placeholders::_2));
 
-            enu_sub_.subscribe(this, topic_prefix_param.as_string() + "/loc/enu");
-            rad_sub_.subscribe(this, topic_prefix_param.as_string() + "/loc/rad");
-            ecef_sub_.subscribe(this, topic_prefix_param.as_string() + "/loc/ecef");
+            enu_sub_.subscribe(this, topic_prefix_param + "/loc/enu");
+            rad_sub_.subscribe(this, topic_prefix_param + "/loc/rad");
+            ecef_sub_.subscribe(this, topic_prefix_param + "/loc/ecef");
             sync_ = std::make_shared<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<nav_msgs::msg::Odometry, farmbot_interfaces::msg::Float32Stamped, nav_msgs::msg::Odometry>>>(10);
             sync_->connectInput(enu_sub_, rad_sub_, ecef_sub_);
             sync_->registerCallback(std::bind(&OdomNPath::callback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));

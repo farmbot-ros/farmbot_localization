@@ -158,25 +158,23 @@ class Gps2Enu : public rclcpp::Node {
         ){
             RCLCPP_INFO(this->get_logger(), "Starting GPS2ENU Node");
 
-            name = "gps_to_enu";
-            topic_prefix_param = "/fb";
-            autodatum = false;
-
             try {
                 name = this->get_parameter("name").as_string(); 
                 topic_prefix_param = this->get_parameter("topic_prefix").as_string();
             } catch (...) {
-                RCLCPP_WARN(this->get_logger(), "No parameters %s found, using default values", name.c_str());
+                name = "gps_to_enu";
+                topic_prefix_param = "/fb";
             }
+
             try {
                 autodatum = this->get_parameter("autodatum").as_bool();
             } catch (...) {
+                autodatum = false;
                 RCLCPP_WARN(this->get_logger(), "Autodatum parameter not found, using default value of false");
             }
 
             fix_sub_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(topic_prefix_param + "/loc/fix", 10, std::bind(&Gps2Enu::callback, this, std::placeholders::_1));
             
-
             ecef_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(topic_prefix_param + "/loc/ecef", 10);
             enu_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(topic_prefix_param + "/loc/enu", 10);
             ecef_datum_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(topic_prefix_param + "/loc/ref/ecef", 10);

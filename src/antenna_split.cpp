@@ -122,22 +122,16 @@ class AntennaSplit : public rclcpp::Node {
             rclcpp::NodeOptions()
             .allow_undeclared_parameters(true)
             .automatically_declare_parameters_from_overrides(true)
-        ){
-            
-            name = "antenna_split";
-            topic_prefix_param = "/fb";
-            gps_sub_topic = "/gps";
-            gps_main_pub_topic = "/gps_main";
-            gps_aux_pub_topic = "/gps_aux";
-            kallman_type = 0;
-
+        ){   
             try {
                 name = this->get_parameter("name").as_string(); 
                 topic_prefix_param = this->get_parameter("topic_prefix").as_string();
             } catch (...) {
-                RCLCPP_WARN(this->get_logger(), "No parameters %s found, using default values", name.c_str());
+                name = "antenna_split";
+                topic_prefix_param = "/fb";
             }
 
+            //try to get the parameters of gps_topic, gps_main, gps_aux, and kallman_type
             try{
                 rclcpp::Parameter gps_topic = this->get_parameter("gps_topic");
                 gps_sub_topic = gps_topic.as_string();
@@ -148,7 +142,11 @@ class AntennaSplit : public rclcpp::Node {
                 rclcpp::Parameter kallman_type_param = this->get_parameter("kallman_type");
                 kallman_type = kallman_type_param.as_int();
             } catch(const std::exception& e) {
-                RCLCPP_INFO(this->get_logger(), "Could not find one of those parameters: gps_topic, gps_main, gps_aux, kallman_type");
+                RCLCPP_WARN(this->get_logger(), "Could not find one of those parameters: gps_topic, gps_main, gps_aux, kallman_type, using defaults");
+                gps_sub_topic = "/gps";
+                gps_main_pub_topic = topic_prefix_param + "/gps_main";
+                gps_aux_pub_topic = topic_prefix_param + "/gps_aux";
+                kallman_type = 0;
             }
 
             gps_sub_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(gps_sub_topic, 10, std::bind(&AntennaSplit::callback, this, std::placeholders::_1));
