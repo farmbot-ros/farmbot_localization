@@ -56,7 +56,7 @@ class TransformPub : public rclcpp::Node {
                 odom_transform();
                 return;
             }
-            RCLCPP_INFO(this->get_logger(), "WAITING FOR TRANSFORM, PLEASE SET DATUM FIRST!");
+            // RCLCPP_INFO(this->get_logger(), "WAITING FOR TRANSFORM, PLEASE SET DATUM FIRST!");
         }
 
         void base_transform(const nav_msgs::msg::Odometry::ConstSharedPtr& odom) {

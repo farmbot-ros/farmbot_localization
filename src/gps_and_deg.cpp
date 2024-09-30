@@ -1,12 +1,10 @@
 #include <cmath>
-
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/nav_sat_fix.hpp"
 #include "farmbot_interfaces/msg/float32_stamped.hpp"
 #include "std_msgs/msg/float32.hpp"
 #include "farmbot_interfaces/srv/datum.hpp"
 #include "farmbot_interfaces/srv/trigger.hpp"
-
 #include "message_filters/subscriber.h"
 #include "message_filters/time_synchronizer.h"
 #include "message_filters/sync_policies/approximate_time.h"
@@ -17,26 +15,19 @@ double toRadians(double degrees) {
 
 class GpsAndDEg : public rclcpp::Node {
     private:
-        sensor_msgs::msg::NavSatFix datum;
         sensor_msgs::msg::NavSatFix curr_gps;
         std_msgs::msg::Float32 angle_deg;
-        bool datum_set = false;
         std::string gps_corr_topic;
         std::string angle_deg_topic;
 
-
-        rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr gps_corr_;
-        rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr angle_deg_;
+        std::string name;
 
         rclcpp::TimerBase::SharedPtr timer_;
-
+        rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr gps_corr_;
+        rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr angle_deg_;
         rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr gps_pub_;
         rclcpp::Publisher<farmbot_interfaces::msg::Float32Stamped>::SharedPtr deg_;
         rclcpp::Publisher<farmbot_interfaces::msg::Float32Stamped>::SharedPtr rad_;
-        rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr dat_pub_;
-
-        rclcpp::Service<farmbot_interfaces::srv::Datum>::SharedPtr datum_gps_;
-        rclcpp::Service<farmbot_interfaces::srv::Trigger>::SharedPtr datum_set_;
 
     public:
         GpsAndDEg() : Node(
@@ -45,11 +36,9 @@ class GpsAndDEg : public rclcpp::Node {
             .allow_undeclared_parameters(true)
             .automatically_declare_parameters_from_overrides(true)
         ){
-            RCLCPP_INFO(this->get_logger(), "Starting GPS Fuser");
-
+            RCLCPP_INFO(this->get_logger(), "Starting GPS & DEG Node");
             rclcpp::Parameter param_val = this->get_parameter("name"); 
             rclcpp::Parameter topic_prefix_param = this->get_parameter("topic_prefix");
-
             try{
                 rclcpp::Parameter gps_corr_param = this->get_parameter("gps_corr");
                 gps_corr_topic = gps_corr_param.as_string();
@@ -60,21 +49,14 @@ class GpsAndDEg : public rclcpp::Node {
                 gps_corr_topic = topic_prefix_param.as_string() + "/gps_corr";
                 angle_deg_topic = topic_prefix_param.as_string() + "/angle_deg";
             }
-
             RCLCPP_INFO(this->get_logger(), "Subscribing to %s and %s", gps_corr_topic.c_str(), angle_deg_topic.c_str());
 
             gps_corr_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(gps_corr_topic, 10, std::bind(&GpsAndDEg::gps_corr_callback, this, std::placeholders::_1));
             angle_deg_ = this->create_subscription<std_msgs::msg::Float32>(angle_deg_topic, 10, std::bind(&GpsAndDEg::angle_deg_callback, this, std::placeholders::_1));
-
             timer_ = this->create_wall_timer(std::chrono::milliseconds(10), std::bind(&GpsAndDEg::timer_callback, this));
-
             gps_pub_ = this->create_publisher<sensor_msgs::msg::NavSatFix>(topic_prefix_param.as_string() + "/loc/fix", 10);
-            dat_pub_ = this->create_publisher<sensor_msgs::msg::NavSatFix>(topic_prefix_param.as_string() + "/loc/ref", 10);
             deg_ = this->create_publisher<farmbot_interfaces::msg::Float32Stamped>(topic_prefix_param.as_string() + "/loc/deg", 10);
             rad_ = this->create_publisher<farmbot_interfaces::msg::Float32Stamped>(topic_prefix_param.as_string() + "/loc/rad", 10);
-
-            datum_gps_ = this->create_service<farmbot_interfaces::srv::Datum>(topic_prefix_param.as_string() + "/datum", std::bind(&GpsAndDEg::datum_gps_callback, this, std::placeholders::_1, std::placeholders::_2));
-            datum_set_ = this->create_service<farmbot_interfaces::srv::Trigger>(topic_prefix_param.as_string() + "/datum/set", std::bind(&GpsAndDEg::datum_set_callback, this, std::placeholders::_1, std::placeholders::_2));
         }
 
     private:
@@ -93,10 +75,6 @@ class GpsAndDEg : public rclcpp::Node {
             curr_pose.header.frame_id = "gps";
             curr_pose.header.stamp = this->now();
             gps_pub_->publish(curr_pose);
-            if (datum_set) { 
-                datum.header = curr_pose.header;
-                dat_pub_->publish(datum);
-            }
             farmbot_interfaces::msg::Float32Stamped deg_msg;
             deg_msg.header = curr_pose.header;
             deg_msg.data = angle_deg.data;
@@ -105,23 +83,6 @@ class GpsAndDEg : public rclcpp::Node {
             rad_msg.header = curr_pose.header;
             rad_msg.data = toRadians(angle_deg.data);
             rad_->publish(rad_msg);
-        }
-
-        void datum_gps_callback(const std::shared_ptr<farmbot_interfaces::srv::Datum::Request> _request, std::shared_ptr<farmbot_interfaces::srv::Datum::Response> _response) {
-            RCLCPP_INFO(this->get_logger(), "Datum Set Request -> SPECIFIED");
-            datum = _request->gps;
-            datum_set = true;
-            _response->message = "DATUM SET TO: " + std::to_string(datum.latitude) + ", " + std::to_string(datum.longitude) + ", " + std::to_string(datum.altitude);
-            return;
-        }
-
-        void datum_set_callback(const std::shared_ptr<farmbot_interfaces::srv::Trigger::Request> _request, std::shared_ptr<farmbot_interfaces::srv::Trigger::Response> _response) {
-            RCLCPP_INFO(this->get_logger(), "Datum Set Request -> CURRENT");
-            auto req = _request;  // to avoid unused parameter warning
-            auto res = _response; // to avoid unused parameter warning
-            datum = curr_gps;
-            datum_set = true;
-            return;
         }
 };
 

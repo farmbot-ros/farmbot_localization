@@ -12,54 +12,73 @@
 #include "message_filters/time_synchronizer.h"
 #include "message_filters/sync_policies/approximate_time.h"
 
-const double R = 6356752.3142;
-const double f_inv = 298.257223563;
-const double f = 1.0 / f_inv;
-const double e2 = 1 - (1 - f) * (1 - f);
+const double R = 6378137.0;                // Earth's radius in meters (equatorial radius)
+const double f = 1.0 / 298.257223563;      // Flattening factor
+const double e2 = 2 * f - f * f;           // Square of eccentricity
 
+// Function to convert GPS (lat, lon, alt) to ECEF coordinates
 std::tuple<double, double, double> gps_to_ecef(double latitude, double longitude, double altitude) {
-    double cosLat = std::cos(latitude * M_PI / 180);
-    double sinLat = std::sin(latitude * M_PI / 180);
-    double cosLong = std::cos(longitude * M_PI / 180);
-    double sinLong = std::sin(longitude * M_PI / 180);
-    double c = 1 / std::sqrt(cosLat * cosLat + (1 - f) * (1 - f) * sinLat * sinLat);
-    double s = (1 - f) * (1 - f) * c;
-    double x = (R*c + altitude) * cosLat * cosLong;
-    double y = (R*c + altitude) * cosLat * sinLong;
-    double z = (R*s + altitude) * sinLat;
+    // Convert latitude and longitude to radians
+    double cosLat = std::cos(latitude * M_PI / 180.0);
+    double sinLat = std::sin(latitude * M_PI / 180.0);
+    double cosLong = std::cos(longitude * M_PI / 180.0);
+    double sinLong = std::sin(longitude * M_PI / 180.0);
+    // Prime vertical radius of curvature
+    double N = R / std::sqrt(1.0 - e2 * sinLat * sinLat);
+    // Calculate ECEF coordinates
+    double x = (N + altitude) * cosLat * cosLong;
+    double y = (N + altitude) * cosLat * sinLong;
+    double z = (N * (1 - e2) + altitude) * sinLat;
+    // Return the ECEF coordinates
     return std::make_tuple(x, y, z);
 }
 
+// Function to convert ECEF coordinates to ENU (East, North, Up) with respect to a datum
 std::tuple<double, double, double> ecef_to_enu(std::tuple<double, double, double> ecef, std::tuple<double, double, double> datum) {
     double x, y, z;
     std::tie(x, y, z) = ecef;
     double latRef, longRef, altRef;
     std::tie(latRef, longRef, altRef) = datum;
-    double cosLatRef = std::cos(latRef * M_PI / 180);
-    double sinLatRef = std::sin(latRef * M_PI / 180);
-    double cosLongRef = std::cos(longRef * M_PI / 180);
-    double sinLongRef = std::sin(longRef * M_PI / 180);
-    double cRef = 1 / std::sqrt(cosLatRef * cosLatRef + (1 - f) * (1 - f) * sinLatRef * sinLatRef);
-    double x0 = (R*cRef + altRef) * cosLatRef * cosLongRef;
-    double y0 = (R*cRef + altRef) * cosLatRef * sinLongRef;
-    double z0 = (R*cRef*(1-e2) + altRef) * sinLatRef;
-    double xEast = (-(x-x0) * sinLongRef) + ((y-y0)*cosLongRef);
-    double yNorth = (-cosLongRef*sinLatRef*(x-x0)) - (sinLatRef*sinLongRef*(y-y0)) + (cosLatRef*(z-z0));
-    double zUp = (cosLatRef*cosLongRef*(x-x0)) + (cosLatRef*sinLongRef*(y-y0)) + (sinLatRef*(z-z0));
+    // Convert the reference latitude and longitude to radians
+    double cosLatRef = std::cos(latRef * M_PI / 180.0);
+    double sinLatRef = std::sin(latRef * M_PI / 180.0);
+    double cosLongRef = std::cos(longRef * M_PI / 180.0);
+    double sinLongRef = std::sin(longRef * M_PI / 180.0);
+    // Prime vertical radius of curvature at the reference point
+    double NRef = R / std::sqrt(1.0 - e2 * sinLatRef * sinLatRef);
+    // Calculate the reference ECEF coordinates (datum)
+    double x0 = (NRef + altRef) * cosLatRef * cosLongRef;
+    double y0 = (NRef + altRef) * cosLatRef * sinLongRef;
+    double z0 = (NRef * (1 - e2) + altRef) * sinLatRef;
+    // Calculate the differences between the ECEF coordinates and the reference ECEF coordinates
+    double dx = x - x0;
+    double dy = y - y0;
+    double dz = z - z0;
+    // Calculate the ENU coordinates
+    double xEast = -sinLongRef * dx + cosLongRef * dy;
+    double yNorth = -cosLongRef * sinLatRef * dx - sinLatRef * sinLongRef * dy + cosLatRef * dz;
+    double zUp = cosLatRef * cosLongRef * dx + cosLatRef * sinLongRef * dy + sinLatRef * dz;
+    // Return the ENU coordinates
     return std::make_tuple(xEast, yNorth, zUp);
 }
 
+// Function to convert GPS (lat, lon, alt) to ENU (East, North, Up) with respect to a datum
 std::tuple<double, double, double> gps_to_enu(double latitude, double longitude, double altitude, double latRef, double longRef, double altRef) {
+    // Convert GPS coordinates to ECEF
     std::tuple<double, double, double> ecef = gps_to_ecef(latitude, longitude, altitude);
+    // Convert reference GPS coordinates to ECEF
     std::tuple<double, double, double> datum = gps_to_ecef(latRef, longRef, altRef);
+    // Return the ENU coordinates
     return ecef_to_enu(ecef, datum);
 }
 
 std::tuple<double, double, double> enu_to_ecef(std::tuple<double, double, double> enu, std::tuple<double, double, double> datum) {
+    // Extract ENU and datum coordinates
     double xEast, yNorth, zUp;
     std::tie(xEast, yNorth, zUp) = enu;
     double latRef, longRef, altRef;
     std::tie(latRef, longRef, altRef) = datum;
+    // Compute trigonometric values for the reference latitude and longitude
     double cosLatRef = std::cos(latRef * M_PI / 180);
     double sinLatRef = std::sin(latRef * M_PI / 180);
     double cosLongRef = std::cos(longRef * M_PI / 180);
@@ -73,6 +92,7 @@ std::tuple<double, double, double> enu_to_ecef(std::tuple<double, double, double
     double x = x0 + (-sinLongRef * xEast) - (sinLatRef * cosLongRef * yNorth) + (cosLatRef * cosLongRef * zUp);
     double y = y0 + (cosLongRef * xEast) - (sinLatRef * sinLongRef * yNorth) + (cosLatRef * sinLongRef * zUp);
     double z = z0 + (cosLatRef * yNorth) + (sinLatRef * zUp);
+    // Return the ECEF coordinates
     return std::make_tuple(x, y, z);
 }
 
@@ -86,32 +106,48 @@ std::tuple<double, double, double> ecef_to_gps(double x, double y, double z) {
     double N = R / std::sqrt(1 - e2 * std::sin(latitude) * std::sin(latitude)); // Prime vertical radius of curvature
     double altitude = p / std::cos(latitude) - N;
     double latOld;
+    // Iterate to refine the latitude and height
     do {
         latOld = latitude;
         N = R / std::sqrt(1 - e2 * std::sin(latitude) * std::sin(latitude));
         altitude = p / std::cos(latitude) - N;
         latitude = std::atan2(z, p * (1 - e2 * N / (N + altitude)));
     } while (std::abs(latitude - latOld) > eps);
+    // Return the GPS coordinates
     return std::make_tuple(latitude * 180 / M_PI, longitude, altitude);
 }
 
 std::tuple<double, double, double> enu_to_gps(double xEast, double yNorth, double zUp, double latRef, double longRef, double altRef) {
+    // Convert ENU to ECEF
     std::tuple<double, double, double> ecef = enu_to_ecef(std::make_tuple(xEast, yNorth, zUp), std::make_tuple(latRef, longRef, altRef));
+    // Convert ECEF to GPS
     return ecef_to_gps(std::get<0>(ecef), std::get<1>(ecef), std::get<2>(ecef));
 }
 
 class Gps2Enu : public rclcpp::Node {
     private:
-        nav_msgs::msg::Odometry datum;
+        sensor_msgs::msg::NavSatFix curr_gps;
+        sensor_msgs::msg::NavSatFix datum;
+        nav_msgs::msg::Odometry ecef_datum;
         bool datum_set = false;
+        int gps_lock_time = 10;
 
-        message_filters::Subscriber<sensor_msgs::msg::NavSatFix> fix_sub_;
-        message_filters::Subscriber<sensor_msgs::msg::NavSatFix> ref_sub;
-        std::shared_ptr<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::NavSatFix, sensor_msgs::msg::NavSatFix>>> sync_;
+        std::string name;
+        std::string topic_prefix_param;
+        bool autodatum;
+
+        rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr fix_sub_;
 
         rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr ecef_pub_;
-        rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr enu_pub_;
+        rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr enu_pub_;        
+        rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr dat_pub_;
         rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr ecef_datum_pub_;
+
+        rclcpp::Service<farmbot_interfaces::srv::Datum>::SharedPtr datum_gps_;
+        rclcpp::Service<farmbot_interfaces::srv::Trigger>::SharedPtr datum_set_;
+
+        rclcpp::TimerBase::SharedPtr info_timer_;
+        rclcpp::TimerBase::SharedPtr datum_timer_;
 
     public:
         Gps2Enu() : Node(
@@ -122,29 +158,66 @@ class Gps2Enu : public rclcpp::Node {
         ){
             RCLCPP_INFO(this->get_logger(), "Starting GPS2ENU Node");
 
-            rclcpp::Parameter param_val = this->get_parameter("name"); 
-            rclcpp::Parameter topic_prefix_param = this->get_parameter("topic_prefix");
+            name = "gps_to_enu";
+            topic_prefix_param = "/fb";
+            autodatum = false;
 
-            fix_sub_.subscribe(this, topic_prefix_param.as_string() + "/loc/fix");
-            ref_sub.subscribe(this, topic_prefix_param.as_string() + "/loc/ref");
-            sync_ = std::make_shared<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<sensor_msgs::msg::NavSatFix, sensor_msgs::msg::NavSatFix>>>(10);
-            sync_->connectInput(fix_sub_, ref_sub);
-            sync_->registerCallback(std::bind(&Gps2Enu::callback, this, std::placeholders::_1, std::placeholders::_2));
+             try {
+                name = this->get_parameter("name").as_string(); 
+                topic_prefix_param = this->get_parameter("topic_prefix").as_string();
+            } catch (...) {
+                RCLCPP_WARN(this->get_logger(), "No parameters %s found, using default values", name.c_str());
+            }
+            try {
+                autodatum = this->get_parameter("autodatum").as_bool();
+            } catch (...) {
+                RCLCPP_WARN(this->get_logger(), "Autodatum parameter not found, using default value of false");
+            }
 
-            ecef_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(topic_prefix_param.as_string() + "/loc/ecef", 10);
-            enu_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(topic_prefix_param.as_string() + "/loc/enu", 10);
-            ecef_datum_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(topic_prefix_param.as_string() + "/loc/ref/ecef", 10);
+            fix_sub_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(topic_prefix_param + "/loc/fix", 10, std::bind(&Gps2Enu::callback, this, std::placeholders::_1));
+            
+
+            ecef_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(topic_prefix_param + "/loc/ecef", 10);
+            enu_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(topic_prefix_param + "/loc/enu", 10);
+            ecef_datum_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(topic_prefix_param + "/loc/ref/ecef", 10);
+            dat_pub_ = this->create_publisher<sensor_msgs::msg::NavSatFix>(topic_prefix_param + "/loc/ref", 10);
+
+            datum_gps_ = this->create_service<farmbot_interfaces::srv::Datum>(topic_prefix_param + "/datum", std::bind(&Gps2Enu::datum_gps_callback, this, std::placeholders::_1, std::placeholders::_2));
+            datum_set_ = this->create_service<farmbot_interfaces::srv::Trigger>(topic_prefix_param + "/datum/set", std::bind(&Gps2Enu::datum_set_callback, this, std::placeholders::_1, std::placeholders::_2));
+
+            info_timer_ = this->create_wall_timer(std::chrono::seconds(5), std::bind(&Gps2Enu::info_timer_callback, this));
+            datum_timer_ = this->create_wall_timer(std::chrono::seconds(1), std::bind(&Gps2Enu::datum_timer_callback, this));
         }
 
     private:
-        void callback(const sensor_msgs::msg::NavSatFix::ConstSharedPtr& fix, const sensor_msgs::msg::NavSatFix::ConstSharedPtr& ref) {
+
+        void info_timer_callback() {
             if (!datum_set) {
-                set_ecef_datum(ref);
-                datum_set = true;
-            } else {
-                datum.header = ref->header;
-                ecef_datum_pub_->publish(datum);
+                RCLCPP_WARN(this->get_logger(), "NO DATUM SET, PLEASE SET DATUM FIRST!");
             }
+        }
+
+        void datum_timer_callback() {
+            gps_lock_time--;
+            if (gps_lock_time <= 0) {
+                datum_timer_.reset();
+            }
+        }
+
+        void callback(const sensor_msgs::msg::NavSatFix::ConstSharedPtr& fix) {
+            curr_gps = *fix;
+            if (!datum_set) {
+                if (gps_lock_time <= 0 && autodatum) {
+                    set_datum(fix);
+                } else {
+                    return;
+                }
+            }
+
+            ecef_datum.header = fix->header;
+            ecef_datum_pub_->publish(ecef_datum);
+            datum.header = fix->header;
+            dat_pub_->publish(datum);
 
             double lat = fix->latitude, lon = fix->longitude, alt = fix->altitude;
             nav_msgs::msg::Odometry ecef_msg;
@@ -157,7 +230,7 @@ class Gps2Enu : public rclcpp::Node {
 
             nav_msgs::msg::Odometry enu_msg;
             enu_msg.header = fix->header;
-            double d_lat = ref->latitude, d_lon = ref->longitude, d_alt = ref->altitude;
+            double d_lat = datum.latitude, d_lon = datum.longitude, d_alt = datum.altitude;
             double enu_x, enu_y, enu_z;
             std::tie(enu_x, enu_y, enu_z) = ecef_to_enu(std::make_tuple(ecef_x, ecef_y, ecef_z), std::make_tuple(d_lat, d_lon, d_alt));
             enu_msg.pose.pose.position.x = enu_x;
@@ -168,17 +241,37 @@ class Gps2Enu : public rclcpp::Node {
             enu_pub_->publish(enu_msg);
         }
 
-        void set_ecef_datum(const sensor_msgs::msg::NavSatFix::ConstSharedPtr& ref) {
+        void datum_gps_callback(const std::shared_ptr<farmbot_interfaces::srv::Datum::Request> _request, std::shared_ptr<farmbot_interfaces::srv::Datum::Response> _response) {
+            RCLCPP_INFO(this->get_logger(), "Datum Set Request -> SPECIFIED");
+            set_datum(std::make_shared<sensor_msgs::msg::NavSatFix>(_request->gps));
+            _response->message = "DATUM SET TO: " + std::to_string(datum.latitude) + ", " + std::to_string(datum.longitude) + ", " + std::to_string(datum.altitude);
+            return;
+        }
+
+        void datum_set_callback(const std::shared_ptr<farmbot_interfaces::srv::Trigger::Request> _request, std::shared_ptr<farmbot_interfaces::srv::Trigger::Response> _response) {
+            RCLCPP_INFO(this->get_logger(), "Datum Set Request -> CURRENT");
+            auto req = _request;  // to avoid unused parameter warning
+            auto res = _response; // to avoid unused parameter warning
+            set_datum(std::make_shared<sensor_msgs::msg::NavSatFix>(curr_gps));
+            return;
+        }
+
+        void set_datum(const sensor_msgs::msg::NavSatFix::ConstSharedPtr& ref) {
+            datum = *ref;
             datum.header = ref->header;
+            ecef_datum.header = ref->header;
             double lat = ref->latitude;
             double lon = ref->longitude;
             double alt = ref->altitude;
             double x, y, z;
             std::tie(x, y, z) = gps_to_ecef(lat, lon, alt);
-            datum.pose.pose.position.x = x;
-            datum.pose.pose.position.y = y;
-            datum.pose.pose.position.z = z;
+            ecef_datum.pose.pose.position.x = x;
+            ecef_datum.pose.pose.position.y = y;
+            ecef_datum.pose.pose.position.z = z;
+            datum_set = true;
         }
+
+
 
 };
 

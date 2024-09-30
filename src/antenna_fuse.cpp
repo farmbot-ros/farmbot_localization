@@ -14,34 +14,6 @@ double toRadians(double degrees) {
     return degrees * M_PI / 180.0;
 }
 
-// std::pair<float, float> calc_bearing(double lat1_in, double long1_in, double lat2_in, double long2_in, bool add_90_deg=true) {
-//     // Convert latitude and longitude to radians
-//     double lat1 = toRadians(lat1_in);
-//     double long1 = toRadians(long1_in);
-//     double lat2 = toRadians(lat2_in);
-//     double long2 = toRadians(long2_in);
-//     // Calculate the bearing
-//     double bearing_rad = atan2(
-//         sin(long2 - long1) * cos(lat2),
-//         cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(long2 - long1)
-//     );
-//     // Add 90 degrees to get the bearing from north
-//     if (add_90_deg) {
-//         bearing_rad += M_PI / 2.0;
-//     }
-//     // Convert the bearing to degrees
-//     double bearing_deg = bearing_rad * 180.0 / M_PI;
-//     // Make sure the bearing is positive
-//     bearing_deg = fmod((bearing_deg + 360.0), 360.0);
-//     // Make sure bearing is between -2pi and 2pi
-//     if (bearing_rad < -M_PI) {
-//         bearing_rad += 2 * M_PI;
-//     } else if (bearing_rad >= M_PI) {
-//         bearing_rad -= 2 * M_PI;
-//     }
-//     return std::make_pair(static_cast<float>(bearing_deg), static_cast<float>(bearing_rad));
-// }
-
 std::pair<float, float> calc_bearing(double lat1_in, double long1_in, double lat2_in, double long2_in, double angle_gpses = 0.0) {
     // Convert latitude and longitude to radians
     double lat1 = toRadians(lat1_in);
@@ -72,9 +44,7 @@ std::pair<float, float> calc_bearing(double lat1_in, double long1_in, double lat
 
 class AntennaFuse : public rclcpp::Node {
     private:
-        sensor_msgs::msg::NavSatFix datum;
         sensor_msgs::msg::NavSatFix curr_pose;
-        bool datum_set = false;
         double angle_gpses = 0.0;
         std::string gps_main_topic;
         std::string gps_aux_topic;
@@ -112,8 +82,6 @@ class AntennaFuse : public rclcpp::Node {
                 angle_gpses = angle_gpses_param.as_double();
             } catch(const std::exception& e) {
                 RCLCPP_INFO(this->get_logger(), "Error: %s", e.what());
-                // gps_main_.subscribe(this, topic_prefix_param.as_string() + "/gps_main");
-                // gps_aux_.subscribe(this, topic_prefix_param.as_string() + "/gps_aux");
                 gps_main_topic = topic_prefix_param.as_string() + "/gps_main";
                 gps_aux_topic = topic_prefix_param.as_string() + "/gps_aux";
                 angle_gpses = 0.0;
@@ -130,12 +98,8 @@ class AntennaFuse : public rclcpp::Node {
             sync_->registerCallback(std::bind(&AntennaFuse::callback, this, std::placeholders::_1, std::placeholders::_2));
 
             gps_pub_ = this->create_publisher<sensor_msgs::msg::NavSatFix>(topic_prefix_param.as_string() + "/loc/fix", 10);
-            dat_pub_ = this->create_publisher<sensor_msgs::msg::NavSatFix>(topic_prefix_param.as_string() + "/loc/ref", 10);
             deg_ = this->create_publisher<farmbot_interfaces::msg::Float32Stamped>(topic_prefix_param.as_string() + "/loc/deg", 10);
             rad_ = this->create_publisher<farmbot_interfaces::msg::Float32Stamped>(topic_prefix_param.as_string() + "/loc/rad", 10);
-
-            datum_gps_ = this->create_service<farmbot_interfaces::srv::Datum>(topic_prefix_param.as_string() + "/datum", std::bind(&AntennaFuse::datum_gps_callback, this, std::placeholders::_1, std::placeholders::_2));
-            datum_set_ = this->create_service<farmbot_interfaces::srv::Trigger>(topic_prefix_param.as_string() + "/datum/set", std::bind(&AntennaFuse::datum_set_callback, this, std::placeholders::_1, std::placeholders::_2));
         }
 
     private:
@@ -155,28 +119,6 @@ class AntennaFuse : public rclcpp::Node {
             gps_pub_->publish(curr_pose);
             deg_->publish(deg_msg);
             rad_->publish(rad_msg);
-
-            if (datum_set) { 
-                datum.header = curr_pose.header;
-                dat_pub_->publish(datum);
-            }
-        }
-
-        void datum_gps_callback(const std::shared_ptr<farmbot_interfaces::srv::Datum::Request> _request, std::shared_ptr<farmbot_interfaces::srv::Datum::Response> _response) {
-            RCLCPP_INFO(this->get_logger(), "Datum Set Request -> SPECIFIED");
-            datum = _request->gps;
-            datum_set = true;
-            _response->message = "DATUM SET TO: " + std::to_string(datum.latitude) + ", " + std::to_string(datum.longitude) + ", " + std::to_string(datum.altitude);
-            return;
-        }
-
-        void datum_set_callback(const std::shared_ptr<farmbot_interfaces::srv::Trigger::Request> _request, std::shared_ptr<farmbot_interfaces::srv::Trigger::Response> _response) {
-            RCLCPP_INFO(this->get_logger(), "Datum Set Request -> CURRENT");
-            auto req = _request;  // to avoid unused parameter warning
-            auto res = _response; // to avoid unused parameter warning
-            datum = curr_pose;
-            datum_set = true;
-            return;
         }
 };
 
