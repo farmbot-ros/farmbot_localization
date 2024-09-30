@@ -28,15 +28,15 @@ def launch_setup(context, *args, **kwargs):
         ]
     )
 
-    antenna_fuse = Node(
+    single_antenna = Node(
         package='farmbot_localization',
         namespace=namespace,
-        executable='antenna_fuse',
-        name='antenna_fuse',
+        executable='single_antenna',
+        name='single_antenna',
         parameters=[
             {"frame_prefix": namespace+"/"},
             {"namespace": namespace},
-            yaml.safe_load(open(param_file))['antenna_fuse']['ros__parameters'], 
+            yaml.safe_load(open(param_file))['single_antenna']['ros__parameters'], 
             yaml.safe_load(open(param_file))['global']['ros__parameters']
         ]    
     )
@@ -62,9 +62,9 @@ def launch_setup(context, *args, **kwargs):
         nodes_array.append(gps_and_deg)
     elif localization_type == "single_gps":
         nodes_array.append(antenna_split)
-        nodes_array.append(antenna_fuse)
+        nodes_array.append(single_antenna)
     elif localization_type == "dual_gps":
-        nodes_array.append(antenna_fuse)
+        nodes_array.append(single_antenna)
 
     gps_to_enu = Node(
         package='farmbot_localization',

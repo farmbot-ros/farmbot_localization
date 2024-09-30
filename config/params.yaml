@@ -14,7 +14,7 @@ antenna_split:
     gps_aux: '/gps_aux'
     kallman_type: 1
 
-antenna_fuse:
+single_antenna:
   ros__parameters:
     name: 'fuse'
     #input_topics:

@@ -14,7 +14,7 @@
 
 #include "farmbot_localization/utils/wgs_to_enu.hpp"
 
-namespace utl = loc_utils;
+namespace utl = geo_utils;
 
 class Gps2Enu : public rclcpp::Node {
     private:
@@ -23,7 +23,7 @@ class Gps2Enu : public rclcpp::Node {
         nav_msgs::msg::Odometry ecef_datum;
         bool datum_set = false;
         int gps_lock_time = 10;
-
+        
         std::string name;
         std::string topic_prefix_param;
         bool autodatum;
