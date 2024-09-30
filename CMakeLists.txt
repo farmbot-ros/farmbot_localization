@@ -15,6 +15,18 @@ install(
     DESTINATION share/${PROJECT_NAME}
 )
 
+install(
+    DIRECTORY include/
+    DESTINATION include
+)
+
+include_directories(
+  include
+  ${rclcpp_INCLUDE_DIRS}
+  ${std_msgs_INCLUDE_DIRS}
+)
+
+
 cmake_policy(SET CMP0074 NEW)
 
 set(executables
@@ -24,6 +36,10 @@ set(executables
   odom_n_path
   transform_pub
   gps_and_deg
+)
+
+set (utils
+  wgs_to_enu
 )
 
 find_package(ament_cmake REQUIRED)
@@ -75,11 +91,22 @@ set(dependencies_sys
   ${GeographicLib_LIBRARIES}
 )
 
+foreach(util ${utils})
+  add_library(${util} src/utils/${util}.cpp)
+  ament_target_dependencies(${util} ${dependencies_ros})
+  target_link_libraries(${util} ${dependencies_sys})
+endforeach()
+
 foreach(executable ${executables})
   add_executable(${executable} src/${executable}.cpp)
   ament_target_dependencies(${executable} ${dependencies_ros})
   target_link_libraries(${executable} ${dependencies_sys})
+  foreach(util ${utils})
+    target_link_libraries(${executable} ${util})
+  endforeach()
 endforeach()
+
+
 
 
 install(TARGETS
