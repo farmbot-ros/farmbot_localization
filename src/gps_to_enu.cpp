@@ -162,7 +162,7 @@ class Gps2Enu : public rclcpp::Node {
             topic_prefix_param = "/fb";
             autodatum = false;
 
-             try {
+            try {
                 name = this->get_parameter("name").as_string(); 
                 topic_prefix_param = this->get_parameter("topic_prefix").as_string();
             } catch (...) {
