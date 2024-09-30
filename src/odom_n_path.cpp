@@ -41,8 +41,7 @@ class OdomNPath : public rclcpp::Node {
 
         message_filters::Subscriber<nav_msgs::msg::Odometry> enu_sub_;
         message_filters::Subscriber<farmbot_interfaces::msg::Float32Stamped> rad_sub_;
-        message_filters::Subscriber<nav_msgs::msg::Odometry> ecef_sub_;
-        std::shared_ptr<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<nav_msgs::msg::Odometry, farmbot_interfaces::msg::Float32Stamped, nav_msgs::msg::Odometry>>> sync_;
+        std::shared_ptr<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<nav_msgs::msg::Odometry, farmbot_interfaces::msg::Float32Stamped>>> sync_;
 
     public:
         OdomNPath() : Node(
@@ -71,15 +70,13 @@ class OdomNPath : public rclcpp::Node {
 
             enu_sub_.subscribe(this, topic_prefix_param + "/loc/enu");
             rad_sub_.subscribe(this, topic_prefix_param + "/loc/rad");
-            ecef_sub_.subscribe(this, topic_prefix_param + "/loc/ecef");
-            sync_ = std::make_shared<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<nav_msgs::msg::Odometry, farmbot_interfaces::msg::Float32Stamped, nav_msgs::msg::Odometry>>>(10);
-            sync_->connectInput(enu_sub_, rad_sub_, ecef_sub_);
-            sync_->registerCallback(std::bind(&OdomNPath::callback, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+            sync_ = std::make_shared<message_filters::Synchronizer<message_filters::sync_policies::ApproximateTime<nav_msgs::msg::Odometry, farmbot_interfaces::msg::Float32Stamped>>>(10);
+            sync_->connectInput(enu_sub_, rad_sub_);
+            sync_->registerCallback(std::bind(&OdomNPath::callback, this, std::placeholders::_1, std::placeholders::_2));
         }
 
     private:
-        void callback(const nav_msgs::msg::Odometry::ConstSharedPtr& enu_msg, const farmbot_interfaces::msg::Float32Stamped::ConstSharedPtr& rad_msg, const nav_msgs::msg::Odometry::ConstSharedPtr& ecef_msg) {
-            nav_msgs::msg::Odometry ecef_msg_ = *ecef_msg; // TODO: fix, this is a hack to get rid of unused variable warning
+        void callback(const nav_msgs::msg::Odometry::ConstSharedPtr& enu_msg, const farmbot_interfaces::msg::Float32Stamped::ConstSharedPtr& rad_msg) {
             enu_odom = *enu_msg;
             std::array<double, 4> quaterions = theta_to_quaternion(rad_msg->data);
             // RCLCPP_INFO(this->get_logger(), "quat: %.15f, %.15f, %.15f, %.15f", quaterions[0], quaterions[1], quaterions[2], quaterions[3]);
