@@ -82,7 +82,9 @@ class Gps2Enu : public rclcpp::Node {
     private:
 
         void info_timer_callback() {
-            if (!datum_set) {
+            if (!datum_set && autodatum) {
+                RCLCPP_INFO(this->get_logger(), "DATUM WILL BE SET AUTOMATICALLY IN %d SECONDS", gps_lock_time);
+            } else if (!datum_set) {
                 RCLCPP_WARN(this->get_logger(), "NO DATUM SET, PLEASE SET DATUM FIRST!");
             }
         }

@@ -33,6 +33,8 @@ std::pair<float, float> calc_bearing(double lat1_in, double long1_in, double lat
         sin(long2 - long1) * cos(lat2),
         cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(long2 - long1)
     );
+    // Add 90 degrees from the bearing to make it relative to the y-axis
+    bearing_rad += M_PI / 2;
 
     // Add the angle-offset (convert it to radians first)
     bearing_rad += toRadians(angle_gpses);
