@@ -1,7 +1,7 @@
 global:
   ros__parameters:
     topic_prefix: '/fb'
-    localization_type: "fix_n_bearing" # "single_antenna" or "dual_antenna" or "fix_n_bearing"
+    localization_type: "dual_antenna" # "single_antenna" or "dual_antenna" or "fix_n_bearing"
     autodatum: true
 
 single_antenna:

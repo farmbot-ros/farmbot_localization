@@ -10,36 +10,38 @@
 #include "message_filters/time_synchronizer.h"
 #include "message_filters/sync_policies/approximate_time.h"
 
+// Function to convert degrees to radians
 double toRadians(double degrees) {
     return degrees * M_PI / 180.0;
 }
 
+// Function to convert radians to degrees
+double toDegrees(double radians) {
+    return radians * 180.0 / M_PI;
+}
+
+// Function to calculate the bearing between two GPS coordinates with an optional angle offset
 std::pair<float, float> calc_bearing(double lat1_in, double long1_in, double lat2_in, double long2_in, double angle_gpses = 0.0) {
     // Convert latitude and longitude to radians
     double lat1 = toRadians(lat1_in);
     double long1 = toRadians(long1_in);
     double lat2 = toRadians(lat2_in);
     double long2 = toRadians(long2_in);
-    // Calculate the bearing
+
+    // Calculate the bearing in radians
     double bearing_rad = atan2(
         sin(long2 - long1) * cos(lat2),
         cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(long2 - long1)
     );
-    // Add 90 degrees to get the bearing from north
-    bearing_rad += M_PI / 2.0;
-    // Convert the bearing to degrees
-    double bearing_deg = bearing_rad * 180.0 / M_PI;
-    // Make sure the bearing is positive
-    bearing_deg = fmod((bearing_deg + 360.0), 360.0);
-    // Add the angle between the GPSes
-    bearing_deg += angle_gpses;
-    // Make sure bearing is between -2pi and 2pi
-    if (bearing_rad < -M_PI) {
-        bearing_rad += 2 * M_PI;
-    } else if (bearing_rad >= M_PI) {
-        bearing_rad -= 2 * M_PI;
-    }
-    return std::make_pair(static_cast<float>(bearing_deg), static_cast<float>(bearing_rad));
+
+    // Add the angle-offset (convert it to radians first)
+    bearing_rad += toRadians(angle_gpses);
+
+    // Normalize bearing to be within 0 and 2pi
+    bearing_rad = fmod(bearing_rad + 2 * M_PI, 2 * M_PI);
+
+    // Return the bearing in both degrees and radians
+    return std::make_pair(static_cast<float>(toDegrees(bearing_rad)), static_cast<float>(bearing_rad));
 }
 
 class AntennaFuse : public rclcpp::Node {
