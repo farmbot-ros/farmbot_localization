@@ -60,10 +60,10 @@ def launch_setup(context, *args, **kwargs):
 
     if localization_type == "fix_n_bearing":
         nodes_array.append(fix_n_bearing)
-    elif localization_type == "single_gps":
+    elif localization_type == "single_antenna":
         nodes_array.append(single_antenna)
         nodes_array.append(dual_antenna)
-    elif localization_type == "dual_gps":
+    elif localization_type == "dual_antenna":
         nodes_array.append(dual_antenna)
 
     using_enu = Node(
