@@ -15,19 +15,6 @@ def launch_setup(context, *args, **kwargs):
 
     nodes_array = []
     
-    antenna_split = Node(
-        package='farmbot_localization',
-        namespace=namespace,
-        executable='antenna_split',
-        name='antenna_split',
-        parameters=[
-            {"frame_prefix": namespace+"/"},
-            {"namespace": namespace},
-            yaml.safe_load(open(param_file))['antenna_split']['ros__parameters'], 
-            yaml.safe_load(open(param_file))['global']['ros__parameters']
-        ]
-    )
-
     single_antenna = Node(
         package='farmbot_localization',
         namespace=namespace,
@@ -38,47 +25,60 @@ def launch_setup(context, *args, **kwargs):
             {"namespace": namespace},
             yaml.safe_load(open(param_file))['single_antenna']['ros__parameters'], 
             yaml.safe_load(open(param_file))['global']['ros__parameters']
-        ]    
+        ]
     )
 
-    gps_and_deg = Node(
+    dual_antenna = Node(
         package='farmbot_localization',
         namespace=namespace,
-        executable='gps_and_deg',
-        name='gps_and_deg',
+        executable='dual_antenna',
+        name='dual_antenna',
         parameters=[
             {"frame_prefix": namespace+"/"},
             {"namespace": namespace},
-            yaml.safe_load(open(param_file))['gps_and_deg']['ros__parameters'], 
+            yaml.safe_load(open(param_file))['dual_antenna']['ros__parameters'], 
+            yaml.safe_load(open(param_file))['global']['ros__parameters']
+        ]    
+    )
+
+    fix_n_bearing = Node(
+        package='farmbot_localization',
+        namespace=namespace,
+        executable='fix_n_bearing',
+        name='fix_n_bearing',
+        parameters=[
+            {"frame_prefix": namespace+"/"},
+            {"namespace": namespace},
+            yaml.safe_load(open(param_file))['fix_n_bearing']['ros__parameters'], 
             yaml.safe_load(open(param_file))['global']['ros__parameters']
         ]    
     )
 
 
-    # "single_gps" or "dual_gps" or "gps_and_deg"
+    # "single_antenna" or "dual_antenna" or "fix_n_bearing"
     localization_type = yaml.safe_load(open(param_file))['global']['ros__parameters']['localization_type']
 
-    if localization_type == "gps_and_deg":
-        nodes_array.append(gps_and_deg)
+    if localization_type == "fix_n_bearing":
+        nodes_array.append(fix_n_bearing)
     elif localization_type == "single_gps":
-        nodes_array.append(antenna_split)
         nodes_array.append(single_antenna)
+        nodes_array.append(dual_antenna)
     elif localization_type == "dual_gps":
-        nodes_array.append(single_antenna)
+        nodes_array.append(dual_antenna)
 
-    gps_to_enu = Node(
+    using_enu = Node(
         package='farmbot_localization',
         namespace=namespace,
-        executable='gps_to_enu',
-        name='gps_to_enu',
+        executable='using_enu',
+        name='using_enu',
         parameters=[
             {"frame_prefix": namespace+"/"},
             {"namespace": namespace},
-            yaml.safe_load(open(param_file))['gps_to_enu']['ros__parameters'], 
+            yaml.safe_load(open(param_file))['using_enu']['ros__parameters'], 
             yaml.safe_load(open(param_file))['global']['ros__parameters'],
         ]    
     )
-    nodes_array.append(gps_to_enu)
+    nodes_array.append(using_enu)
 
     odom_n_path = Node(
         package='farmbot_localization',

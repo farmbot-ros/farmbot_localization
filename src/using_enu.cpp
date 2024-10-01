@@ -14,7 +14,7 @@
 
 #include "farmbot_localization/utils/wgs_to_enu.hpp"
 
-namespace utl = geo_utils;
+namespace utl = loc_utils;
 
 class Gps2Enu : public rclcpp::Node {
     private:
@@ -43,7 +43,7 @@ class Gps2Enu : public rclcpp::Node {
 
     public:
         Gps2Enu() : Node(
-            "gps_to_enu",
+            "using_enu",
             rclcpp::NodeOptions()
             .allow_undeclared_parameters(true)
             .automatically_declare_parameters_from_overrides(true)
@@ -54,7 +54,7 @@ class Gps2Enu : public rclcpp::Node {
                 name = this->get_parameter("name").as_string(); 
                 topic_prefix_param = this->get_parameter("topic_prefix").as_string();
             } catch (...) {
-                name = "gps_to_enu";
+                name = "using_enu";
                 topic_prefix_param = "/fb";
             }
 

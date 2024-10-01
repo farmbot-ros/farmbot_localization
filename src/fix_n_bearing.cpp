@@ -32,7 +32,7 @@ class GpsAndDEg : public rclcpp::Node {
 
     public:
         GpsAndDEg() : Node(
-            "gps_and_deg",
+            "fix_n_bearing",
             rclcpp::NodeOptions()
             .allow_undeclared_parameters(true)
             .automatically_declare_parameters_from_overrides(true)
@@ -42,7 +42,7 @@ class GpsAndDEg : public rclcpp::Node {
                 name = this->get_parameter("name").as_string(); 
                 topic_prefix_param = this->get_parameter("topic_prefix").as_string();
             } catch (...) {
-                name = "gps_and_deg";
+                name = "fix_n_bearing";
                 topic_prefix_param = "/fb";
             }
 

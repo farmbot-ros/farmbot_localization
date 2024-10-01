@@ -1,12 +1,12 @@
 global:
   ros__parameters:
     topic_prefix: '/fb'
-    localization_type: "gps_and_deg" # "single_gps" or "dual_gps" or "gps_and_deg"
+    localization_type: "fix_n_bearing" # "single_antenna" or "dual_antenna" or "fix_n_bearing"
     autodatum: true
 
-antenna_split:
+single_antenna:
   ros__parameters:
-    name: 'split'
+    name: 'single_antenna'
     #input_topic:
     gps_topic: '/gps'
     #output_topics:
@@ -14,24 +14,24 @@ antenna_split:
     gps_aux: '/gps_aux'
     kallman_type: 1
 
-single_antenna:
+dual_antenna:
   ros__parameters:
-    name: 'fuse'
+    name: 'dual_antenna'
     #input_topics:
     gps_main: '/gps_main'
     gps_aux: '/gps_aux'
     angle_gpses: 90.0
 
-gps_and_deg:
+fix_n_bearing:
   ros__parameters:
-    name: 'gps_and_deg'
+    name: 'fix_n_bearings'
     #input_topics:
     gps_corr: '/Robotti/gps_center'
     angle_deg: '/angle_rad'
 
-gps_to_enu:
+using_enu:
   ros__parameters:
-    name: 'gps_to_enu'
+    name: 'using_enu'
     #input_topics:
     gps_lock_time: 5
 

@@ -66,7 +66,7 @@ class AntennaFuse : public rclcpp::Node {
 
     public:
         AntennaFuse() : Node(
-            "antenna_fuse",
+            "dual_antenna",
             rclcpp::NodeOptions()
             .allow_undeclared_parameters(true)
             .automatically_declare_parameters_from_overrides(true)
@@ -77,7 +77,7 @@ class AntennaFuse : public rclcpp::Node {
                 name = this->get_parameter("name").as_string(); 
                 topic_prefix_param = this->get_parameter("topic_prefix").as_string();
             } catch (...) {
-                name = "antenna_split";
+                name = "dual_antenna";
                 topic_prefix_param = "/fb";
             }
             

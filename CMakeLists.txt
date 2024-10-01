@@ -30,12 +30,13 @@ include_directories(
 cmake_policy(SET CMP0074 NEW)
 
 set(executables
-  antenna_fuse
+  dual_antenna
   single_antenna
-  gps_to_enu
+  fix_n_bearing
+  
+  using_enu
   odom_n_path
   transform_pub
-  gps_and_deg
 )
 
 set (utils
