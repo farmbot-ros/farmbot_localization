@@ -16,22 +16,10 @@ Georeferencing in a robot navigation system involves transforming global positio
    - [Well-Known Text (WKT) and EPSG Codes](#well-known-text-wkt-and-epsg-codes)
    - [Importance of Choosing the Right CRS](#importance-of-choosing-the-right-crs)
    - [Coordinate Frames in ROS 2](#coordinate-frames-in-ros-2)
-     - [Base Link (`base_link`)](#base-link-base_link)
-     - [Odometry Frame (`odom`)](#odometry-frame-odom)
-     - [Map Frame (`map`)](#map-frame-map)
-     - [Earth Frame (`earth`)](#earth-frame-earth)
-     - [Map Conventions](#map-conventions)
-     - [Map Conventions in Structured Environments](#map-conventions-in-structured-environments)
-     - [Relationship between Frames](#relationship-between-frames)
-     - [Extra Intermediate Frames](#extra-intermediate-frames)
-     - [Frame Authorities](#frame-authorities)
-     - [Exceptions](#exceptions)
 4. [Transformation Processes](#transformation-processes)
    - [WGS84 to ECEF to ENU](#wgs84-to-ecef-to-enu)
    - [WGS84 to UTM](#wgs84-to-utm)
 8. [Conclusion](#conclusion)
-9. [Summary](#summary)
-10. [Additional Resources](#additional-resources)
 
 ---
 
@@ -353,9 +341,11 @@ The UTM system projects geographic coordinates into a planar, Cartesian system, 
 **Conversion Steps:**
 
 1. **Determine the UTM Zone:**
+
    $$
    \text{Zone} = \left\lfloor \frac{\text{Longitude} + 180}{6} \right\rfloor + 1
    $$
+
    - Longitude ranges from -180° to +180°
    - Zone numbers range from 1 to 60
 
@@ -376,19 +366,3 @@ The UTM system projects geographic coordinates into a planar, Cartesian system, 
 ## Conclusion
 
 Georeferencing is a fundamental process in robotic navigation systems, enabling the accurate translation of global positioning data into local coordinate frames that robots can utilize for precise movement and task execution. By understanding and implementing the transformation processes from WGS84 to ECEF and ENU or directly to UTM, and leveraging ROS 2's tf2 package for managing these transformations, robots can maintain accurate localization and navigation capabilities in diverse environments. This integration is essential for mitigating issues like odometry drift and ensuring reliable operation in both simulated and real-world scenarios.
-
----
-
-## Additional Resources
-
-- **ROS 2 Documentation:** [https://docs.ros.org/en/foxy/index.html](https://docs.ros.org/en/foxy/index.html)
-- **tf2 ROS 2 Package:** [https://docs.ros.org/en/foxy/Tf2.html](https://docs.ros.org/en/foxy/Tf2.html)
-- **Proj4 Library:** [https://proj.org/](https://proj.org/)
-- **Geodesy ROS Package:** [https://github.com/ros-geographic-info/geodesy](https://github.com/ros-geographic-info/geodesy)
-- **RViz 2 Documentation:** [https://docs.ros.org/en/foxy/Tutorials/Using-RViz.html](https://docs.ros.org/en/foxy/Tutorials/Using-RViz.html)
-- **Geographic Information Systems (GIS) Resources:** [https://www.esri.com/en-us/what-is-gis/overview](https://www.esri.com/en-us/what-is-gis/overview)
-- **ROS REP 103: Coordinate Frames:** [http://wiki.ros.org/robot_localization/CoordinateFrames](http://wiki.ros.org/robot_localization/CoordinateFrames)
-- **Understanding Coordinate Frames in ROS 2:** [https://docs.ros.org/en/foxy/Tutorials/TF2.html](https://docs.ros.org/en/foxy/Tutorials/TF2.html)
-
----
-
