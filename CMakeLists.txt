@@ -37,6 +37,7 @@ set(executables
   using_enu
   odom_n_path
   transform_pub
+  cord_convert
 )
 
 set (utils
@@ -96,6 +97,7 @@ set(dependencies_sys
 foreach(util ${utils})
   add_library(${util} src/utils/${util}.cpp)
   ament_target_dependencies(${util} ${dependencies_ros})
+  # target_compile_options(${util} PRIVATE -Wno-deprecated-declarations -Wunused-parameter)
   target_link_libraries(${util} ${dependencies_sys})
 endforeach()
 
@@ -103,6 +105,7 @@ foreach(executable ${executables})
   add_executable(${executable} src/${executable}.cpp)
   ament_target_dependencies(${executable} ${dependencies_ros})
   target_link_libraries(${executable} ${dependencies_sys})
+  # target_compile_options(${executable} PRIVATE -Wno-deprecated-declarations -Wunused-parameter)
   foreach(util ${utils})
     target_link_libraries(${executable} ${util})
   endforeach()
