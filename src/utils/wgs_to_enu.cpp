@@ -50,11 +50,9 @@ namespace loc_utils {
     // Function to convert GPS (lat, lon, alt) to ENU (East, North, Up) with respect to a datum
     std::tuple<double, double, double> gps_to_enu(double latitude, double longitude, double altitude, double latRef, double longRef, double altRef) {
         // Convert GPS coordinates to ECEF
-        std::tuple<double, double, double> ecef = gps_to_ecef(latitude, longitude, altitude);
-        // Convert reference GPS coordinates to ECEF
-        std::tuple<double, double, double> datum = gps_to_ecef(latRef, longRef, altRef);
+        std::tuple<double, double, double> ecef = gps_to_ecef(latitude, longitude, altitude);        
         // Return the ENU coordinates
-        return ecef_to_enu(ecef, datum);
+        return ecef_to_enu(ecef, std::make_tuple(latRef, longRef, altRef));
     }
 
     std::tuple<double, double, double> enu_to_ecef(std::tuple<double, double, double> enu, std::tuple<double, double, double> datum) {
