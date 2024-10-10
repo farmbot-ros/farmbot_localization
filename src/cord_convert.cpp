@@ -79,72 +79,117 @@ class CoordinateTransformer : public rclcpp::Node {
         void ecef2enuCallback(
             const std::shared_ptr<farmbot_interfaces::srv::Ecef2Enu::Request> request,
             std::shared_ptr<farmbot_interfaces::srv::Ecef2Enu::Response> response) {
+            if (!datum_set) {
+                RCLCPP_INFO(this->get_logger(), "Datum not set, cannot convert ECEF to ENU");
+                response->message = "Datum not set, cannot convert ECEF to ENU";
+                return;
+            }
             RCLCPP_INFO(this->get_logger(), "Converting ECEF to ENU...");
-            // Placeholder logic: Copy input directly for demonstration
+            for (const auto &pose : request->ecef) {
+                geometry_msgs::msg::Pose enu_pose;
+                std::tuple<double, double, double> ecef_to_enu = loc_utils::ecef_to_enu(std::make_tuple(pose.position.x, pose.position.y, pose.position.z),
+                    std::make_tuple(geo_datum.latitude, geo_datum.longitude, geo_datum.altitude));
+                enu_pose.position.x = std::get<0>(ecef_to_enu);
+                enu_pose.position.y = std::get<1>(ecef_to_enu);
+                enu_pose.position.z = std::get<2>(ecef_to_enu);
+                response->enu.push_back(enu_pose);
+            }
             response->message = "Converted ECEF to ENU";
-            response->enu = request->ecef; // Replace with actual conversion logic
+            return;
         }
 
         void ecef2gpsCallback(
             const std::shared_ptr<farmbot_interfaces::srv::Ecef2Gps::Request> request,
             std::shared_ptr<farmbot_interfaces::srv::Ecef2Gps::Response> response) {
             RCLCPP_INFO(this->get_logger(), "Converting ECEF to GPS...");
-            response->message = "Converted ECEF to GPS";
             for (const auto &pose : request->ecef) {
                 sensor_msgs::msg::NavSatFix gps;
-                gps.latitude = 0.0;  // Replace with actual latitude calculation
-                gps.longitude = 0.0; // Replace with actual longitude calculation
-                gps.altitude = 0.0;  // Replace with actual altitude calculation
+                std::tuple<double, double, double> ecef_to_gps = loc_utils::ecef_to_gps(pose.position.x, pose.position.y, pose.position.z);
+                gps.latitude = std::get<0>(ecef_to_gps);
+                gps.longitude = std::get<1>(ecef_to_gps);
+                gps.altitude = std::get<2>(ecef_to_gps);
                 response->gps.push_back(gps);
             }
+            response->message = "Converted ECEF to GPS";
+            return;
         }
 
         void enu2ecefCallback(
             const std::shared_ptr<farmbot_interfaces::srv::Enu2Ecef::Request> request,
             std::shared_ptr<farmbot_interfaces::srv::Enu2Ecef::Response> response) {
+            if (!datum_set) {
+                RCLCPP_INFO(this->get_logger(), "Datum not set, cannot convert ENU to ECEF");
+                response->message = "Datum not set, cannot convert ENU to ECEF";
+                return;
+            }
             RCLCPP_INFO(this->get_logger(), "Converting ENU to ECEF...");
+            for (const auto &pose : request->enu) {
+                geometry_msgs::msg::Pose ecef_pose;
+                std::tuple<double, double, double> enu_to_ecef = loc_utils::enu_to_ecef(std::make_tuple(pose.position.x, pose.position.y, pose.position.z),
+                    std::make_tuple(geo_datum.latitude, geo_datum.longitude, geo_datum.altitude));
+                ecef_pose.position.x = std::get<0>(enu_to_ecef);
+                ecef_pose.position.y = std::get<1>(enu_to_ecef);
+                ecef_pose.position.z = std::get<2>(enu_to_ecef);
+                response->ecef.push_back(ecef_pose);
+            }
             response->message = "Converted ENU to ECEF";
-            response->ecef = request->enu; // Replace with actual conversion logic
+            return;
         }
 
         void enu2gpsCallback(
             const std::shared_ptr<farmbot_interfaces::srv::Enu2Gps::Request> request,
             std::shared_ptr<farmbot_interfaces::srv::Enu2Gps::Response> response) {
+            if (!datum_set) {
+                RCLCPP_INFO(this->get_logger(), "Datum not set, cannot convert ENU to GPS");
+                response->message = "Datum not set, cannot convert ENU to GPS";
+                return;
+            }
             RCLCPP_INFO(this->get_logger(), "Converting ENU to GPS...");
-            response->message = "Converted ENU to GPS";
             for (const auto &pose : request->enu) {
                 sensor_msgs::msg::NavSatFix gps;
-                gps.latitude = 0.0;  // Replace with actual latitude calculation
-                gps.longitude = 0.0; // Replace with actual longitude calculation
-                gps.altitude = 0.0;  // Replace with actual altitude calculation
+                std::tuple<double, double, double> enu_to_gps = loc_utils::enu_to_gps(pose.position.x, pose.position.y, pose.position.z,
+                    geo_datum.latitude, geo_datum.longitude, geo_datum.altitude);
+                gps.latitude = std::get<0>(enu_to_gps);
+                gps.longitude = std::get<1>(enu_to_gps);
+                gps.altitude = std::get<2>(enu_to_gps);
                 response->gps.push_back(gps);
             }
+            response->message = "Converted ENU to GPS";
+            return;
         }
 
         void gps2ecefCallback(
             const std::shared_ptr<farmbot_interfaces::srv::Gps2Ecef::Request> request,
             std::shared_ptr<farmbot_interfaces::srv::Gps2Ecef::Response> response) {
             RCLCPP_INFO(this->get_logger(), "Converting GPS to ECEF...");
-            response->message = "Converted GPS to ECEF";
             for (const auto &gps : request->gps) {
                 geometry_msgs::msg::Pose ecef_pose;
-                ecef_pose.position.x = 0.0; // Replace with actual X calculation
-                ecef_pose.position.y = 0.0; // Replace with actual Y calculation
-                ecef_pose.position.z = 0.0; // Replace with actual Z calculation
+                std::tuple<double, double, double> gps_to_ecef = loc_utils::gps_to_ecef(gps.latitude, gps.longitude, gps.altitude);
+                ecef_pose.position.x = std::get<0>(gps_to_ecef);
+                ecef_pose.position.y = std::get<1>(gps_to_ecef);
+                ecef_pose.position.z = std::get<2>(gps_to_ecef);
                 response->ecef.push_back(ecef_pose);
             }
+            response->message = "Converted GPS to ECEF";
+            return;
         }
 
         void gps2enuCallback(
             const std::shared_ptr<farmbot_interfaces::srv::Gps2Enu::Request> request,
             std::shared_ptr<farmbot_interfaces::srv::Gps2Enu::Response> response) {
+            if (!datum_set) {
+                RCLCPP_INFO(this->get_logger(), "Datum not set, cannot convert GPS to ENU");
+                response->message = "Datum not set, cannot convert GPS to ENU";
+                return;
+            }
             RCLCPP_INFO(this->get_logger(), "Converting GPS to ENU...");
-            response->message = "Converted GPS to ENU";
             for (const auto &gps : request->gps) {
                 geometry_msgs::msg::Pose enu_pose;
-                enu_pose.position.x = 0.0; // Replace with actual X calculation
-                enu_pose.position.y = 0.0; // Replace with actual Y calculation
-                enu_pose.position.z = 0.0; // Replace with actual Z calculation
+                std::tuple<double, double, double> gps_to_enu = loc_utils::gps_to_enu(gps.latitude, gps.longitude, gps.altitude,
+                    geo_datum.latitude, geo_datum.longitude, geo_datum.altitude);
+                enu_pose.position.x = std::get<0>(gps_to_enu);
+                enu_pose.position.y = std::get<1>(gps_to_enu);
+                enu_pose.position.z = std::get<2>(gps_to_enu);
                 response->enu.push_back(enu_pose);
             }
         }
