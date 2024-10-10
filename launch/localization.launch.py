@@ -108,6 +108,20 @@ def launch_setup(context, *args, **kwargs):
     )
     nodes_array.append(transform_pub)
 
+    cord_convert = Node(
+        package='farmbot_localization',
+        namespace=namespace,
+        executable='cord_convert',
+        name='cord_convert',
+        parameters=[
+            {"frame_prefix": namespace+"/"},
+            {"namespace": namespace},
+            yaml.safe_load(open(param_file))['cord_convert']['ros__parameters'], 
+            yaml.safe_load(open(param_file))['global']['ros__parameters']
+        ]
+    )
+    nodes_array.append(cord_convert)
+
     return nodes_array
 
 

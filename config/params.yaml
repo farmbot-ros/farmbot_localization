@@ -42,3 +42,7 @@ odom_n_path:
 transform_pub:
   ros__parameters:
     name: 'transform_pub'
+
+cord_convert:
+  ros__parameters:
+    name: 'cord_convert'

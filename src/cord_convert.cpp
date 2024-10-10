@@ -68,7 +68,7 @@ class CoordinateTransformer : public rclcpp::Node {
             
             ecef_datum_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
                 topic_prefix_param + "/loc/ref", 10, [this](const nav_msgs::msg::Odometry::SharedPtr msg) {
-                    datum_set = true;
+                    // datum_set = true;
                     ecef_datum = *msg;
                 });
             
